@@ -1,6 +1,6 @@
 #include "stm32f0xx.h"
 
-#define app ((volatile uint32_t *)(0x08000400))
+#define app ((volatile uint32_t *)(0x08000800))
 #define vec ((volatile uint32_t *)(SRAM_BASE))
 
 typedef struct{
@@ -17,6 +17,11 @@ uint8_t access;
 uint8_t d;
 
 void goApp(){
+    RCC->APB2RSTR = RCC_APB2RSTR_USART1RST;
+    RCC->AHBRSTR = RCC_AHBRSTR_GPIOARST;
+    RCC->APB2RSTR = 0;
+    RCC->AHBRSTR = 0;
+    
     for (uint8_t i = 0; i < 48; i++)
         vec[i] = app[i];
 
@@ -169,7 +174,7 @@ void proc(){
     if(cmd == 11){
         CRC->CR=CRC_CR_RESET | CRC_CR_REV_OUT | CRC_CR_REV_IN_0;
         for(uint16_t i=0; i<1024; i++)*(uint8_t *)(&(CRC->DR))=*(uint8_t*)(0x08000800+pageN*1024+i);
-        sendPack(0xCB, (uint8_t*)(&(CRC->DR)), 4);
+        sendPack(0x4B, (uint8_t*)(&(CRC->DR)), 4);
     }
 }
 
