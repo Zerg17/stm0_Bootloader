@@ -2,6 +2,7 @@
 
 #define app ((volatile uint32_t *)(0x08000800))
 #define vec ((volatile uint32_t *)(SRAM_BASE))
+#define APPLICATION_ADDRESS 0x08000800
 
 typedef struct{
     uint32_t res1;
@@ -15,8 +16,24 @@ const info_t info = {0x5555, 0x6666, 0x7777, 0x8888};
 uint32_t tmpKey;
 uint8_t access;
 uint8_t d;
+uint32_t count;
 
 void goApp(){
+
+    const uint32_t *app_base = (const uint32_t *)APPLICATION_ADDRESS;
+    
+    if(app_base[0] == 0xffffffff){
+        //printf("No programm\n");
+        count=0;
+        return;
+    }
+    
+    if (app_base[1]<APPLICATION_ADDRESS){
+        //printf("ERR second world\n");
+        count=0;
+        return;
+    }
+
     RCC->APB2RSTR = RCC_APB2RSTR_USART1RST;
     RCC->AHBRSTR = RCC_AHBRSTR_GPIOARST;
     RCC->APB2RSTR = 0;
@@ -95,6 +112,7 @@ uint8_t readU(){
             USART1->ICR = USART_ICR_RTOCF;
             return 1;
         }
+        if(count++>700000)goApp();
     }
 }
 
@@ -138,6 +156,8 @@ void proc(){
         ((uint8_t*)&crcIn)[i]=d;
     }
     if(crcTmp!=crcIn)return;
+
+    count=0;
 
     if(cmd == 0) sendPack(0x40, 0, 0);
     if(cmd == 1) sendPack(0x41, (uint8_t*)&info, sizeof(info));
