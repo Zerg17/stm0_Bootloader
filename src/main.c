@@ -1,8 +1,8 @@
 #include "stm32f0xx.h"
 
-#define app ((volatile uint32_t *)(0x08000800))
-#define vec ((volatile uint32_t *)(SRAM_BASE))
 #define APPLICATION_ADDRESS 0x08000800
+#define app ((volatile uint32_t *)(APPLICATION_ADDRESS))
+#define vec ((volatile uint32_t *)(SRAM_BASE))
 
 typedef struct{
     uint32_t res1;
@@ -19,20 +19,17 @@ uint8_t d;
 uint32_t count;
 
 void goApp(){
-
     const uint32_t *app_base = (const uint32_t *)APPLICATION_ADDRESS;
-    
+
     if(app_base[0] == 0xffffffff){
-        //printf("No programm\n");
         count=0;
         return;
     }
-    
+
     if (app_base[1]<APPLICATION_ADDRESS){
-        //printf("ERR second world\n");
         count=0;
         return;
-    }
+    } 
 
     RCC->APB2RSTR = RCC_APB2RSTR_USART1RST;
     RCC->AHBRSTR = RCC_AHBRSTR_GPIOARST;
@@ -112,7 +109,7 @@ uint8_t readU(){
             USART1->ICR = USART_ICR_RTOCF;
             return 1;
         }
-        if(count++>700000)goApp();
+        if(count++>700000) goApp();
     }
 }
 
@@ -178,32 +175,36 @@ void proc(){
 
     if(!access)return;
 
-    if(pageN>30)sendPack(0xC0|cmd, 0, 0);
+    if(pageN>30){
+        sendPack(0xC0|cmd, 0, 0);
+        return;
+    }
 
     if(cmd == 8){
         sendPack(0x48, 0, 0);
-        flashSectorClear(0x08000800+pageN*1024);
+        flashSectorClear(APPLICATION_ADDRESS+pageN*1024);
         sendPack(0x88, 0, 0);
     }
     if(cmd == 9){
         sendPack(0x49, 0, 0);
-        for(uint16_t i=0; i<512; i++) flashWrite((0x08000800+pageN*1024)+i*2, ((uint16_t*)&page)[i]);
+        for(uint16_t i=0; i<512; i++) flashWrite((APPLICATION_ADDRESS+pageN*1024)+i*2, ((uint16_t*)&page)[i]);
         sendPack(0x89, 0, 0);
     }
-    if(cmd == 10) sendPack(0x4A, (uint8_t*)(0x08000800+pageN*1024), 1024);              
+    if(cmd == 10) sendPack(0x4A, (uint8_t*)(APPLICATION_ADDRESS+pageN*1024), 1024);              
     if(cmd == 11){
         CRC->CR=CRC_CR_RESET | CRC_CR_REV_OUT | CRC_CR_REV_IN_0;
-        for(uint16_t i=0; i<1024; i++)*(uint8_t *)(&(CRC->DR))=*(uint8_t*)(0x08000800+pageN*1024+i);
+        for(uint16_t i=0; i<1024; i++)*(uint8_t *)(&(CRC->DR))=*(uint8_t*)(APPLICATION_ADDRESS+pageN*1024+i);
         sendPack(0x4B, (uint8_t*)(&(CRC->DR)), 4);
     }
 }
 
 int main(void){
-    RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_CRCEN;
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN | RCC_AHBENR_CRCEN;
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN | RCC_APB2ENR_SYSCFGCOMPEN | RCC_APB2ENR_SYSCFGEN;
 
-    GPIOA->MODER |= GPIO_MODER_MODER10_1 | GPIO_MODER_MODER9_1;
-    GPIOA->AFR[1]|= 0x00000110;
+    GPIOA->MODER |= GPIO_MODER_MODER15_1;
+    GPIOA->AFR[1]|= 0x10000000;
+    GPIOB->MODER |= GPIO_MODER_MODER6_1 | GPIO_MODER_MODER1_0 | GPIO_MODER_MODER0_0;
 
     USART1->RTOR = 80;
     USART1->CR3 = USART_CR3_OVRDIS;
