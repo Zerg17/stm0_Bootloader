@@ -194,7 +194,8 @@ void proc(){
     if(cmd == 11){
         CRC->CR=CRC_CR_RESET | CRC_CR_REV_OUT | CRC_CR_REV_IN_0;
         for(uint16_t i=0; i<1024; i++)*(uint8_t *)(&(CRC->DR))=*(uint8_t*)(APPLICATION_ADDRESS+pageN*1024+i);
-        sendPack(0x4B, (uint8_t*)(&(CRC->DR)), 4);
+        uint32_t crc = CRC->DR;
+        sendPack(0x4B, (uint8_t*)(&crc), 4);
     }
 }
 
