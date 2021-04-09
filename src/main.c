@@ -4,6 +4,10 @@
 #define app ((volatile uint32_t *)(APPLICATION_ADDRESS))
 #define vec ((volatile uint32_t *)(SRAM_BASE))
 
+#define IWDG_START          0xCCCC
+#define IWDG_WRITE_ACCESS   0x5555
+#define IWDG_REFRESH        0xAAAA
+
 typedef struct{
     uint32_t res1;
     uint32_t res2;
@@ -35,6 +39,12 @@ void goApp(){
     RCC->AHBRSTR = RCC_AHBRSTR_GPIOARST;
     RCC->APB2RSTR = 0;
     RCC->AHBRSTR = 0;
+
+    IWDG->KR = IWDG_START;
+    IWDG->KR = IWDG_WRITE_ACCESS;
+    IWDG->PR = IWDG_PR_PR_2;
+    IWDG->RLR = 625 - 1;
+    IWDG->KR = IWDG_REFRESH;
     
     for (uint8_t i = 0; i < 48; i++)
         vec[i] = app[i];
@@ -154,6 +164,7 @@ void proc(){
     }
     if(crcTmp!=crcIn)return;
 
+    IWDG->KR = IWDG_REFRESH;
     count=0;
 
     if(cmd == 0) sendPack(0x40, 0, 0);
